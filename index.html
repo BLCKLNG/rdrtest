@@ -2,123 +2,56 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=2560, height=1440, initial-scale=1" />
-  <style>
-    html, body { margin:0; background:transparent; overflow:hidden; }
-    * { box-sizing:border-box; }
-
-    :root{
-      /* ===== 1440p canvas ===== */
-      --canvas-w: 2560px;
-      --canvas-h: 1440px;
-
-      /* layout */
-      --bottom: 53px;
-
-      /* carpet (width will be set by JS to make 40px side space on widest page) */
-      --carpet-w: 1440px;
-      --carpet-h: 240px;
-      --carpet-radius: 53px;
-
-      /* keep your CURRENT perfect sizing */
-      --pad-x: 40px;
-      --gap: 24px;
-      --icon-h: 200px;
-
-      /* timing */
-      --fade-ms: 1000ms;
-      --idle-ms: 8000ms;
-
-      --gold: #d4af37;
-    }
-
-    body{
-      width: var(--canvas-w);
-      height: var(--canvas-h);
-      position: relative;
-    }
-
-    #wrap{
-      position: absolute;
-      left: 0; right: 0;
-      bottom: var(--bottom);
-      display: flex;
-      justify-content: center;
-      pointer-events: none;
-    }
-
-    #carpet{
-      position: relative;
-      width: var(--carpet-w);
-      height: var(--carpet-h);
-      border-radius: var(--carpet-radius);
-
-      background: linear-gradient(
-        180deg,
-        #7a0f1f 0%,
-        #5a0c17 45%,
-        #3d0810 100%
-      );
-
-      border: 6px solid var(--gold);
-
-      box-shadow:
-        0 0 30px rgba(120, 0, 40, 0.45),
-        0 0 80px rgba(60, 0, 20, 0.35);
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding-left: var(--pad-x);
-      padding-right: var(--pad-x);
-    }
-
-    #icons{
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: var(--gap);
-      white-space: nowrap;
-
-      opacity: 1;
-      transition: opacity var(--fade-ms) linear;
-      will-change: opacity;
-    }
-    #icons.out{ opacity: 0; }
-
-    #icons img{
-      height: var(--icon-h);
-      width: auto;
-      display: block;
-
-      filter:
-        drop-shadow(0 14px 24px rgba(0,0,0,0.65))
-        drop-shadow(0 0 14px rgba(0,0,0,0.30));
-
-      backface-visibility: hidden;
-      transform: translateZ(0);
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 
-<body>
-  <div id="wrap">
-    <div id="carpet">
-      <div id="icons"></div>
+<body style="margin:0; background:transparent; overflow:hidden; width:2560px; height:1440px; position:relative;">
+  <!-- If you see THIS text in Live Studio, HTML is loading -->
+  <div style="position:fixed; left:16px; top:16px; color:rgba(255,255,255,0.25); font:700 18px system-ui; z-index:9999; pointer-events:none;">
+    OVERLAY LOADED
+  </div>
+
+  <div id="wrap"
+    style="position:absolute; left:0; right:0; bottom:53px; display:flex; justify-content:center; pointer-events:none;">
+    <div id="carpet"
+      style="
+        position:relative;
+        width:1440px;
+        height:240px;
+        border-radius:53px;
+        background: linear-gradient(180deg,#7a0f1f 0%,#5a0c17 45%,#3d0810 100%);
+        border:6px solid #d4af37;
+        box-shadow: 0 0 30px rgba(120,0,40,0.45), 0 0 80px rgba(60,0,20,0.35);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding-left:40px;
+        padding-right:40px;
+      ">
+      <div id="icons"
+        style="
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:24px;
+          white-space:nowrap;
+          opacity:1;
+          transition: opacity 1000ms linear;
+          will-change: opacity;
+        "></div>
     </div>
   </div>
 
   <script>
+    // If Live Studio blocks inline JS, you will still see the carpet + "OVERLAY LOADED"
     const V_IMG = 1;
 
-    // 20 images, 4 pages, 5 per page (only images changed)
     const pages = [
       ["HEAL.png","KICKFLIP.png","ENEMY.png","SPIN.png","SLEEP.png"],
       ["VAMPIRE.png","PREDATOR.png","SOLDIER.png","HORSE.png","DANCE.png"],
       ["KACHOW.png","FLY.png","THROW.png","SKYRIM.png","SKYFALL.png"],
       ["RWEAPON.png","REVOLVER.png","DWARF.png","GRAVITY.png","DOOMSDAY.png"]
     ];
-
     const files = pages.flat();
 
     const FADE_MS = 1000;
@@ -162,6 +95,13 @@
         img.alt = name;
         img.decoding = "async";
         img.loading = "eager";
+        img.style.height = "200px";
+        img.style.width = "auto";
+        img.style.display = "block";
+        img.style.filter =
+          "drop-shadow(0 14px 24px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(0,0,0,0.30))";
+        img.style.backfaceVisibility = "hidden";
+        img.style.transform = "translateZ(0)";
         attachFallback(img, name);
         img.src = "images/" + name + "?v=" + V_IMG;
         iconsEl.appendChild(img);
@@ -169,18 +109,13 @@
     }
 
     async function setCarpetWidthFor40pxSides(){
-      // Measure widest page with CURRENT fixed sizes
       let widest = 0;
-
       for (const page of pages){
         renderPage(page);
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         widest = Math.max(widest, iconsEl.scrollWidth);
       }
-
-      // Carpet outer width should be widest + 80px (40px each side)
       const target = Math.ceil(widest + 80);
-
       carpetEl.style.width = target + "px";
     }
 
@@ -191,20 +126,20 @@
       while(true){
         await sleep(IDLE_MS);
 
-        iconsEl.classList.add("out");
+        iconsEl.style.opacity = "0";
         await sleep(FADE_MS);
 
         idx = (idx + 1) % pages.length;
         renderPage(pages[idx]);
 
-        requestAnimationFrame(() => iconsEl.classList.remove("out"));
+        requestAnimationFrame(() => iconsEl.style.opacity = "1");
         await sleep(FADE_MS);
       }
     }
 
     (async function init(){
       await preloadImages();
-      await setCarpetWidthFor40pxSides(); // locks 40px side space on widest page
+      await setCarpetWidthFor40pxSides();
       cycle();
     })();
   </script>
