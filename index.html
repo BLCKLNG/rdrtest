@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=2560, height=1440, initial-scale=1" />
+  <style>
+    html, body { margin:0; background:transparent; overflow:hidden; }
+    * { box-sizing:border-box; }
+
+    :root{
+      /* ===== 1440p canvas ===== */
+      --canvas-w: 2560px;
+      --canvas-h: 1440px;
+
+      /* layout */
+      --bottom: 53px;
+
+      /* carpet (width will be set by JS to make 40px side space on widest page) */
+      --carpet-w: 1440px;
+      --carpet-h: 240px;
+      --carpet-radius: 53px;
+
+      /* keep your CURRENT perfect sizing */
+      --pad-x: 40px;
+      --gap: 24px;
+      --icon-h: 200px;
+
+      /* timing */
+      --fade-ms: 1000ms;
+      --idle-ms: 8000ms;
+
+      --gold: #d4af37;
+    }
+
+    body{
+      width: var(--canvas-w);
+      height: var(--canvas-h);
+      position: relative;
+    }
+
+    #wrap{
+      position: absolute;
+      left: 0; right: 0;
+      bottom: var(--bottom);
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    #carpet{
+      position: relative;
+      width: var(--carpet-w);
+      height: var(--carpet-h);
+      border-radius: var(--carpet-radius);
+
+      background: linear-gradient(
+        180deg,
+        #7a0f1f 0%,
+        #5a0c17 45%,
+        #3d0810 100%
+      );
+
+      border: 6px solid var(--gold);
+
+      box-shadow:
+        0 0 30px rgba(120, 0, 40, 0.45),
+        0 0 80px rgba(60, 0, 20, 0.35);
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-left: var(--pad-x);
+      padding-right: var(--pad-x);
+    }
+
+    #icons{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--gap);
+      white-space: nowrap;
+
+      opacity: 1;
+      transition: opacity var(--fade-ms) linear;
+      will-change: opacity;
+    }
+    #icons.out{ opacity: 0; }
+
+    #icons img{
+      height: var(--icon-h);
+      width: auto;
+      display: block;
+
+      filter:
+        drop-shadow(0 14px 24px rgba(0,0,0,0.65))
+        drop-shadow(0 0 14px rgba(0,0,0,0.30));
+
+      backface-visibility: hidden;
+      transform: translateZ(0);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="wrap">
+    <div id="carpet">
+      <div id="icons"></div>
+    </div>
+  </div>
+
+  <script>
+    const V_IMG = 1;
+
+    // 20 images, 4 pages, 5 per page (only images changed)
+    const pages = [
+      ["HEAL.png","KICKFLIP.png","ENEMY.png","SPIN.png","SLEEP.png"],
+      ["VAMPIRE.png","PREDATOR.png","SOLDIER.png","HORSE.png","DANCE.png"],
+      ["KACHOW.png","FLY.png","THROW.png","SKYRIM.png","SKYFALL.png"],
+      ["RWEAPON.png","REVOLVER.png","DWARF.png","GRAVITY.png","DOOMSDAY.png"]
+    ];
+
+    const files = pages.flat();
+
+    const FADE_MS = 1000;
+    const IDLE_MS = 8000;
+
+    const iconsEl = document.getElementById("icons");
+    const carpetEl = document.getElementById("carpet");
+
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function attachFallback(img, name){
+      const base = name.replace(/\.[^.]+$/, "");
+      const ext  = (name.match(/\.([^.]+)$/) || ["","png"])[1].toLowerCase();
+      const candidates = [
+        name, base + "." + ext.toUpperCase(), base + ".png", base + ".PNG",
+        base + ".jpg", base + ".JPG", base + ".jpeg", base + ".JPEG",
+        base + ".webp", base + ".WEBP"
+      ];
+      let k = 0;
+      img.onerror = () => {
+        k++;
+        if (k >= candidates.length) { img.style.display = "none"; return; }
+        img.src = "images/" + candidates[k] + "?v=" + V_IMG;
+      };
+    }
+
+    async function preloadImages(){
+      const uniq = [...new Set(files)];
+      await Promise.all(uniq.map(name => {
+        const img = new Image();
+        attachFallback(img, name);
+        img.src = "images/" + name + "?v=" + V_IMG;
+        return img.decode ? img.decode().catch(()=>{}) : Promise.resolve();
+      }));
+    }
+
+    function renderPage(list){
+      iconsEl.innerHTML = "";
+      for (const name of list){
+        const img = document.createElement("img");
+        img.alt = name;
+        img.decoding = "async";
+        img.loading = "eager";
+        attachFallback(img, name);
+        img.src = "images/" + name + "?v=" + V_IMG;
+        iconsEl.appendChild(img);
+      }
+    }
+
+    async function setCarpetWidthFor40pxSides(){
+      // Measure widest page with CURRENT fixed sizes
+      let widest = 0;
+
+      for (const page of pages){
+        renderPage(page);
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        widest = Math.max(widest, iconsEl.scrollWidth);
+      }
+
+      // Carpet outer width should be widest + 80px (40px each side)
+      const target = Math.ceil(widest + 80);
+
+      carpetEl.style.width = target + "px";
+    }
+
+    async function cycle(){
+      let idx = 0;
+      renderPage(pages[idx]);
+
+      while(true){
+        await sleep(IDLE_MS);
+
+        iconsEl.classList.add("out");
+        await sleep(FADE_MS);
+
+        idx = (idx + 1) % pages.length;
+        renderPage(pages[idx]);
+
+        requestAnimationFrame(() => iconsEl.classList.remove("out"));
+        await sleep(FADE_MS);
+      }
+    }
+
+    (async function init(){
+      await preloadImages();
+      await setCarpetWidthFor40pxSides(); // locks 40px side space on widest page
+      cycle();
+    })();
+  </script>
+</body>
+</html>
